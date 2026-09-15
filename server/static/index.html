@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BidMonitor 招标监控</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --card: #fff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 70px
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #fff;
+            padding: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center
+        }
+
+        .header h1 {
+            font-size: 18px
+        }
+
+        .header .subtitle {
+            font-size: 12px;
+            opacity: .9
+        }
+
+        .refresh-btn {
+            background: rgba(255, 255, 255, .2);
+            border: none;
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: var(--card);
+            border-bottom: 1px solid var(--border)
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%
+        }
+
+        .status-dot.running {
+            background: var(--success);
+            animation: pulse 2s infinite
+        }
+
+        .status-dot.stopped {
+            background: var(--danger)
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: .5
+            }
+        }
+
+        .container {
+            padding: 16px;
+            max-width: 600px;
+            margin: 0 auto
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .05)
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 12px;
+            background: var(--bg);
+            border-radius: 8px
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary)
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px
+        }
+
+        .countdown-box {
+            text-align: center;
+            padding: 12px;
+            margin-top: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            color: #fff;
+            display: none
+        }
+
+        .countdown-label {
+            font-size: 12px;
+            opacity: .9
+        }
+
+        .countdown-value {
+            font-size: 28px;
+            font-weight: 700;
+            font-family: monospace
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .2s
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: #fff
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: #fff
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: #fff
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text)
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap
+        }
+
+        .btn:disabled {
+            opacity: .5;
+            cursor: not-allowed
+        }
+
+        .btn-sm {
+            padding: 6px 10px;
+            font-size: 12px
+        }
+
+        .logs-container {
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px
+        }
+
+        .log-line {
+            color: #94a3b8;
+            padding: 2px 0;
+            word-break: break-all
+        }
+
+        .log-line.success {
+            color: #4ade80
+        }
+
+        .log-line.error {
+            color: #f87171
+        }
+
+        .page {
+            display: none;
+            padding-bottom: 20px
+        }
+
+        .page.active {
+            display: block
+        }
+
+        .nav-tabs {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--card);
+            display: flex;
+            border-top: 1px solid var(--border);
+            z-index: 100
+        }
+
+        .nav-tab {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px;
+            border: none;
+            background: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 11px
+        }
+
+        .nav-tab.active {
+            color: var(--primary)
+        }
+
+        .nav-tab-icon {
+            font-size: 20px;
+            margin-bottom: 2px
+        }
+
+        .result-item {
+            padding: 12px;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .result-title {
+            font-weight: 500;
+            margin-bottom: 4px
+        }
+
+        .result-title a {
+            color: var(--primary);
+            text-decoration: none
+        }
+
+        .result-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 12px
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary)
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 12px
+        }
+
+        .config-section {
+            margin-bottom: 16px
+        }
+
+        .config-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--text)
+        }
+
+        .config-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--card)
+        }
+
+        textarea.config-input {
+            min-height: 80px;
+            resize: vertical
+        }
+
+        .toggle-switch {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .switch {
+            position: relative;
+            width: 44px;
+            height: 24px
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #cbd5e1;
+            border-radius: 24px;
+            transition: .3s
+        }
+
+        .slider:before {
+            content: "";
+            position: absolute;
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: #fff;
+            border-radius: 50%;
+            transition: .3s
+        }
+
+        input:checked+.slider {
+            background: var(--primary)
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(20px)
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, .5);
+            z-index: 200;
+            align-items: flex-end;
+            justify-content: center
+        }
+
+        .modal.active {
+            display: flex
+        }
+
+        .modal-content {
+            background: var(--card);
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            border-radius: 16px 16px 0 0;
+            overflow-y: auto
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-secondary)
+        }
+
+        .modal-body {
+            padding: 16px
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            padding: 16px;
+            border-top: 1px solid var(--border)
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0
+        }
+
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .list-item-content {
+            flex: 1
+        }
+
+        .list-item-title {
+            font-weight: 500
+        }
+
+        .list-item-subtitle {
+            font-size: 12px;
+            color: var(--text-secondary)
+        }
+
+        .list-item-actions {
+            display: flex;
+            gap: 8px
+        }
+
+        .hint {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary)
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div>
+            <h1>🔍 BidMonitor</h1>
+            <div class="subtitle">招标信息监控系统</div>
+        </div>
+        <button class="refresh-btn" onclick="refreshAll()">🔄 刷新</button>
+    </div>
+    <div class="status-bar">
+        <div class="status-indicator">
+            <div class="status-dot stopped" id="statusDot"></div><span id="statusText">已停止</span>
+        </div>
+        <span id="nextRun" style="font-size:12px;color:var(--text-secondary)"></span>
+    </div>
+    <!-- 控制台 -->
+    <div id="page-home" class="page active">
+        <div class="container">
+            <div class="card">
+                <div class="card-title">📊 今日统计</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="todayNew">-</div>
+                        <div class="stat-label">今日新增</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="todayRounds">-</div>
+                        <div class="stat-label">今日轮数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalBids">-</div>
+                        <div class="stat-label">总计招标</div>
+                    </div>
+                </div>
+                <div class="countdown-box" id="countdownBox">
+                    <div class="countdown-label">⏱️ 下次检索倒计时</div>
+                    <div class="countdown-value" id="countdownValue">--:--</div>
+                </div>
+                <div class="progress-box" id="progressBox"
+                    style="display:none;margin-top:12px;padding:12px;background:var(--bg);border-radius:8px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                        <span style="font-size:12px;color:var(--text-secondary)">🔄 正在检索</span>
+                        <span id="progressText" style="font-size:12px;font-weight:bold;color:var(--primary)">0/0</span>
+                    </div>
+                    <div style="background:#e2e8f0;border-radius:4px;height:8px;overflow:hidden">
+                        <div id="progressBar"
+                            style="background:linear-gradient(90deg,var(--primary),var(--success));height:100%;width:0%;transition:width 0.3s">
+                        </div>
+                    </div>
+                    <div id="progressSite"
+                        style="font-size:11px;color:var(--text-secondary);margin-top:6px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap">
+                        准备中...</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">🎮 监控控制</div>
+                <div class="btn-group">
+                    <button class="btn btn-success" id="btnStart" onclick="startMonitor()">▶️ 开始</button>
+                    <button class="btn btn-danger" id="btnStop" onclick="stopMonitor()">⏹️ 停止</button>
+                </div>
+                <button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="runOnce()">🔍
+                    立即检索一次</button>
+            </div>
+            <div class="card">
+                <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+                    <span>📝 实时日志</span>
+                    <button class="btn btn-sm btn-outline" onclick="clearLogs()">🗑️ 清除</button>
+                </div>
+                <div class="logs-container" id="logsContainer">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 招标结果 -->
+    <div id="page-results" class="page">
+        <div class="container">
+            <div class="card">
+                <div class="card-title">📋 最新招标信息</div>
+                <div id="resultsList">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 网站管理 -->
+    <div id="page-sites" class="page">
+        <div class="container">
+            <div class="card">
+                <div class="card-title">🌐 内置网站</div>
+                <div class="btn-group" style="margin-bottom:10px">
+                    <button class="btn btn-sm btn-outline" onclick="selectAllSites()">✅ 全选</button>
+                    <button class="btn btn-sm btn-outline" onclick="deselectAllSites()">❌ 取消全选</button>
+                </div>
+                <div id="sitesList" style="max-height:300px;overflow-y:auto">
+                    <div class="loading">加载中...</div>
+                </div>
+                <button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="saveSites()">💾
+                    保存网站配置</button>
+            </div>
+            <div class="card">
+                <div class="card-title">➕ 自定义网站</div>
+                <p class="hint" style="margin-bottom:10px">添加任意招标网站URL，系统将尝试自动解析</p>
+                <div id="customSitesList"></div>
+                <button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="showAddCustomSite()">➕
+                    添加自定义网站</button>
+            </div>
+        </div>
+    </div>
+    <!-- 联系人 -->
+    <div id="page-contacts" class="page">
+        <div class="container">
+            <div class="card">
+                <div class="card-title">👥 联系人管理</div>
+                <div id="contactsList">
+                    <div class="loading">加载中...</div>
+                </div>
+                <button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="showAddContact()">➕
+                    添加联系人</button>
+            </div>
+        </div>
+    </div>
+    <!-- 配置 -->
+    <div id="page-config" class="page">
+        <div class="container">
+            <div class="card">
+                <div class="card-title">🔍 搜索配置</div>
+                <div class="config-section"><label class="config-label">关注关键词（逗号分隔）</label><textarea
+                        class="config-input" id="cfgKeywords"></textarea></div>
+                <div class="config-section"><label class="config-label">排除关键词</label><textarea class="config-input"
+                        id="cfgExclude"></textarea></div>
+                <div class="config-section"><label class="config-label">必须包含</label><input type="text"
+                        class="config-input" id="cfgMustContain"></div>
+                <div class="config-section"><label class="config-label">检索间隔（分钟）</label><input type="number"
+                        class="config-input" id="cfgInterval" min="5" max="120" value="20"></div>
+                <div class="toggle-switch"><span>🌐 Selenium浏览器模式</span><label class="switch"><input type="checkbox"
+                            id="cfgSelenium"><span class="slider"></span></label></div>
+                <p class="hint">Selenium模式可抓取更多网站，但需要服务器安装Chrome浏览器</p>
+                <button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="saveConfig()">💾
+                    保存配置</button>
+            </div>
+            <div class="card">
+                <div class="card-title">🔔 通知API配置</div>
+                <p class="hint" style="margin-bottom:10px">💡 邮件和微信Token请在联系人中单独配置</p>
+                <div class="toggle-switch" onclick="showSmsConfig()"><span>📱 短信API</span><span
+                        style="color:var(--primary)">配置 ▶</span></div>
+                <div class="toggle-switch" onclick="showVoiceConfig()"><span>📞 语音API</span><span
+                        style="color:var(--primary)">配置 ▶</span></div>
+                <div class="toggle-switch" onclick="showAiConfig()"><span>🤖 AI智能分析</span><span
+                        style="color:var(--primary)">配置 ▶</span></div>
+            </div>
+            <div class="card">
+                <div class="card-title">⚠️ 危险操作</div>
+                <button class="btn btn-danger" style="width:100%" onclick="clearHistory()">🗑️ 清空历史数据</button>
+            </div>
+        </div>
+    </div>
+    <!-- 联系人弹窗 -->
+    <div id="contactModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><span id="contactModalTitle">添加联系人</span><button class="modal-close"
+                    onclick="closeContactModal()">×</button></div>
+            <div class="modal-body">
+                <div class="config-section"><label class="config-label">👤 姓名*</label><input type="text"
+                        class="config-input" id="contactName"></div>
+                <div class="config-section"><label class="config-label">📱 手机号</label><input type="tel"
+                        class="config-input" id="contactPhone">
+                    <p class="hint">用于接收短信和语音通知</p>
+                </div>
+                <div class="config-section"><label class="config-label">📧 邮箱地址</label><input type="email"
+                        class="config-input" id="contactEmail"></div>
+                <div class="config-section"><label class="config-label">邮箱类型</label>
+                    <select class="config-input" id="contactEmailType">
+                        <option value="QQ邮箱">QQ邮箱</option>
+                        <option value="163邮箱">163邮箱</option>
+                        <option value="Gmail">Gmail</option>
+                        <option value="Outlook">Outlook</option>
+                        <option value="企业邮箱">企业邮箱</option>
+                    </select>
+                </div>
+                <div class="config-section"><label class="config-label">邮箱授权码</label><input type="password"
+                        class="config-input" id="contactEmailPassword">
+                    <p class="hint">QQ邮箱需在设置中开启SMTP并获取授权码</p>
+                </div>
+                <div class="config-section"><label class="config-label">💬 微信PushPlus Token</label><input type="text"
+                        class="config-input" id="contactWechatToken">
+                    <p class="hint">在 pushplus.plus 获取Token接收微信通知</p>
+                </div>
+                <div class="toggle-switch"><span>启用此联系人通知</span><label class="switch"><input type="checkbox"
+                            id="contactEnabled" checked><span class="slider"></span></label></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" style="flex:1" onclick="closeContactModal()">取消</button>
+                <button class="btn btn-warning" style="flex:1" onclick="testContactNotify()">🧪 测试</button>
+                <button class="btn btn-primary" style="flex:1" onclick="saveContact()">保存</button>
+            </div>
+        </div>
+    </div>
+    <!-- 短信配置弹窗 -->
+    <div id="smsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><span>📱 短信API配置</span><button class="modal-close"
+                    onclick="closeModal('smsModal')">×</button></div>
+            <div class="modal-body">
+                <div class="toggle-switch"><span>启用短信通知</span><label class="switch"><input type="checkbox"
+                            id="smsEnabled"><span class="slider"></span></label></div>
+                <div class="config-section"><label class="config-label">AccessKey ID</label><input type="text"
+                        class="config-input" id="smsAkid"></div>
+                <div class="config-section"><label class="config-label">AccessKey Secret</label><input type="password"
+                        class="config-input" id="smsAksecret">
+                    <p class="hint">留空则保留原值</p>
+                </div>
+                <div class="config-section"><label class="config-label">签名名称</label><input type="text"
+                        class="config-input" id="smsSign"></div>
+                <div class="config-section"><label class="config-label">模板代码</label><input type="text"
+                        class="config-input" id="smsTemplate"></div>
+                <div class="config-section"><label class="config-label">🧪 测试手机号</label><input type="tel"
+                        class="config-input" id="smsTestPhone" placeholder="输入手机号进行测试"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" style="flex:1" onclick="closeModal('smsModal')">取消</button>
+                <button class="btn btn-warning" style="flex:1" onclick="testSms()">🧪 测试</button>
+                <button class="btn btn-primary" style="flex:1" onclick="saveSmsConfig()">保存</button>
+            </div>
+        </div>
+    </div>
+    <!-- 语音配置弹窗 -->
+    <div id="voiceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><span>📞 语音通知配置</span><button class="modal-close"
+                    onclick="closeModal('voiceModal')">×</button></div>
+            <div class="modal-body">
+                <div class="toggle-switch"><span>启用语音通知</span><label class="switch"><input type="checkbox"
+                            id="voiceEnabled"><span class="slider"></span></label></div>
+                <div class="config-section"><label class="config-label">AccessKey ID</label><input type="text"
+                        class="config-input" id="voiceAkid">
+                    <p class="hint">阿里云RAM用户的AccessKey ID</p>
+                </div>
+                <div class="config-section"><label class="config-label">AccessKey Secret</label><input type="password"
+                        class="config-input" id="voiceAksecret">
+                    <p class="hint">留空则保留原值</p>
+                </div>
+                <div class="config-section"><label class="config-label">TTS模板ID</label><input type="text"
+                        class="config-input" id="voiceTtsCode">
+                    <p class="hint">模板示例: 您有${count}条新招标信息，来源${source}</p>
+                </div>
+                <div class="config-section"><label class="config-label">被叫显号（可选）</label><input type="text"
+                        class="config-input" id="voiceShowNumber">
+                    <p class="hint">公共模式留空；专属模式填阿里云分配的号码</p>
+                </div>
+                <div class="config-section"><label class="config-label">🧪 测试手机号</label><input type="tel"
+                        class="config-input" id="voiceTestPhone" placeholder="输入手机号进行测试"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" style="flex:1" onclick="closeModal('voiceModal')">取消</button>
+                <button class="btn btn-warning" style="flex:1" onclick="testVoice()">🧪 测试</button>
+                <button class="btn btn-primary" style="flex:1" onclick="saveVoiceConfig()">保存</button>
+            </div>
+        </div>
+    </div>
+    <!-- AI配置弹窗 -->
+    <div id="aiModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><span>🤖 AI配置</span><button class="modal-close"
+                    onclick="closeModal('aiModal')">×</button></div>
+            <div class="modal-body">
+                <div class="toggle-switch"><span>启用AI分析</span><label class="switch"><input type="checkbox"
+                            id="aiEnabled"><span class="slider"></span></label></div>
+                <div class="config-section"><label class="config-label">API地址</label><input type="text"
+                        class="config-input" id="aiUrl" value="https://api.deepseek.com/chat/completions"></div>
+                <div class="config-section"><label class="config-label">API Key</label><input type="password"
+                        class="config-input" id="aiKey">
+                    <p class="hint">留空则保留原值</p>
+                </div>
+                <div class="config-section"><label class="config-label">模型</label><input type="text"
+                        class="config-input" id="aiModel" value="deepseek-chat"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" style="flex:1" onclick="closeModal('aiModal')">取消</button>
+                <button class="btn btn-warning" style="flex:1" onclick="testAi()">🧪 测试</button>
+                <button class="btn btn-primary" style="flex:1" onclick="saveAiConfig()">保存</button>
+            </div>
+        </div>
+    </div>
+    <!-- 自定义网站弹窗 -->
+    <div id="customSiteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><span>添加自定义网站</span><button class="modal-close"
+                    onclick="closeModal('customSiteModal')">×</button></div>
+            <div class="modal-body">
+                <div class="config-section"><label class="config-label">网站名称*</label><input type="text"
+                        class="config-input" id="customSiteName" placeholder="例如：某市公共资源交易中心"></div>
+                <div class="config-section"><label class="config-label">网站URL*</label><input type="text"
+                        class="config-input" id="customSiteUrl" placeholder="https://example.com/zfcg/search"></div>
+                <p class="hint">系统将尝试自动解析该页面的招标信息列表</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" style="flex:1" onclick="closeModal('customSiteModal')">取消</button>
+                <button class="btn btn-primary" style="flex:1" onclick="saveCustomSite()">添加</button>
+            </div>
+        </div>
+    </div>
+    <!-- 底部导航 -->
+    <nav class="nav-tabs">
+        <button class="nav-tab active" onclick="showPage('home')"><span class="nav-tab-icon">🏠</span>控制台</button>
+        <button class="nav-tab" onclick="showPage('results')"><span class="nav-tab-icon">📋</span>结果</button>
+        <button class="nav-tab" onclick="showPage('sites')"><span class="nav-tab-icon">🌐</span>网站</button>
+        <button class="nav-tab" onclick="showPage('contacts')"><span class="nav-tab-icon">👥</span>联系人</button>
+        <button class="nav-tab" onclick="showPage('config')"><span class="nav-tab-icon">⚙️</span>配置</button>
+    </nav>
+    <script>
+        const API = '';
+        let currentConfig = {}, currentContacts = [], currentSites = [], currentCustomSites = [], editingContactIndex = -1;
+        let nextRunTime = null, countdownInterval = null;
+
+        function showPage(n) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('page-' + n).classList.add('active');
+            event.target.closest('.nav-tab').classList.add('active');
+            if (n === 'results') loadResults();
+            if (n === 'config') loadConfig();
+            if (n === 'sites') loadSites();
+            if (n === 'contacts') loadContacts();
+        }
+
+        async function refreshAll() { await refreshStatus(); loadLogs(); }
+
+        async function refreshStatus() {
+            try {
+                console.log('[DEBUG] Calling /api/status'); const res = await fetch(API + '/api/status');
+                const data = await res.json();
+                const dot = document.getElementById('statusDot'), text = document.getElementById('statusText');
+                if (data.is_running) {
+                    dot.className = 'status-dot running'; text.textContent = '监控中';
+                    document.getElementById('btnStart').disabled = true;
+                    document.getElementById('btnStop').disabled = false;
+                } else {
+                    dot.className = 'status-dot stopped'; text.textContent = '已停止';
+                    document.getElementById('btnStart').disabled = false;
+                    document.getElementById('btnStop').disabled = true;
+                }
+                document.getElementById('todayNew').textContent = data.today_new || 0;
+                document.getElementById('todayRounds').textContent = data.today_rounds || 0;
+                document.getElementById('totalBids').textContent = data.total_bids || 0;
+
+                // 更新倒计时
+                if (data.is_running && data.next_run_time) {
+                    nextRunTime = new Date(data.next_run_time.replace(' ', 'T'));
+                    document.getElementById('countdownBox').style.display = 'block';
+                    startCountdown();
+                } else {
+                    nextRunTime = null;
+                    document.getElementById('countdownBox').style.display = 'none';
+                    if (countdownInterval) clearInterval(countdownInterval);
+                }
+
+
+                // 更新进度条
+                if (data.is_crawling && data.progress_total > 0) {
+                    document.getElementById('progressBox').style.display = 'block';
+                    document.getElementById('progressText').textContent = data.progress_current + '/' + data.progress_total;
+                    const percent = Math.round((data.progress_current / data.progress_total) * 100);
+                    document.getElementById('progressBar').style.width = percent + '%';
+                    document.getElementById('progressSite').textContent = data.progress_site || '准备中...';
+                } else {
+                    document.getElementById('progressBox').style.display = 'none';
+                }
+
+                if (data.next_run_time) {
+                    document.getElementById('nextRun').textContent = '下次: ' + data.next_run_time.split(' ')[1];
+                } else {
+                    document.getElementById('nextRun').textContent = '';
+                }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('statusText').textContent = '连接失败';
+                document.getElementById('statusDot').className = 'status-dot stopped';
+            }
+        }
+
+        function startCountdown() {
+            if (countdownInterval) clearInterval(countdownInterval);
+            updateCountdown();
+            countdownInterval = setInterval(updateCountdown, 1000);
+        }
+
+        function updateCountdown() {
+            if (!nextRunTime) return;
+            const now = new Date();
+            const diff = Math.max(0, Math.floor((nextRunTime - now) / 1000));
+            const mins = Math.floor(diff / 60);
+            const secs = diff % 60;
+            document.getElementById('countdownValue').textContent =
+                String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+            if (diff <= 0) {
+                document.getElementById('countdownValue').textContent = '检索中...';
+            }
+        }
+
+        async function loadLogs() {
+            try {
+                const res = await fetch(API + '/api/logs?limit=50');
+                const data = await res.json();
+                const c = document.getElementById('logsContainer');
+
+                // 判断用户是否在日志底部附近（距离底部50px以内）
+                const isNearBottom = (c.scrollHeight - c.scrollTop - c.clientHeight) < 50;
+
+                if (data.logs && data.logs.length > 0) {
+                    c.innerHTML = data.logs.map(log => {
+                        let cls = 'log-line';
+                        if (log.includes('✅') || log.includes('成功') || log.includes('[OK]')) cls += ' success';
+                        else if (log.includes('❌') || log.includes('失败') || log.includes('[ERROR]') || log.includes('[FAILED]')) cls += ' error';
+                        return `<div class="${cls}">${escapeHtml(log)}</div>`;
+                    }).join('');
+                    // 只有当用户在底部附近时才自动滚动
+                    if (isNearBottom) {
+                        c.scrollTop = c.scrollHeight;
+                    }
+                } else {
+                    c.innerHTML = '<div class="log-line">暂无日志</div>';
+                }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('logsContainer').innerHTML = '<div class="log-line error">无法加载日志</div>';
+            }
+        }
+
+        async function loadResults() {
+            try {
+                const res = await fetch(API + '/api/results?limit=50');
+                const data = await res.json();
+                const c = document.getElementById('resultsList');
+                if (data.items && data.items.length > 0) {
+                    c.innerHTML = data.items.map(i => `<div class="result-item"><div class="result-title"><a href="${i.url}" target="_blank">${escapeHtml(i.title)}</a></div><div class="result-meta"><span>📅 ${i.pub_date || '未知'}</span><span>📍 ${escapeHtml(i.source)}</span></div></div>`).join('');
+                } else {
+                    c.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>暂无招标信息</div></div>';
+                }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('resultsList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><div>加载失败，请刷新重试</div></div>';
+            }
+        }
+
+        async function loadConfig() {
+            try {
+                const res = await fetch(API + '/api/config');
+                currentConfig = await res.json();
+                document.getElementById('cfgKeywords').value = currentConfig.keywords || '';
+                document.getElementById('cfgExclude').value = currentConfig.exclude || '';
+                document.getElementById('cfgMustContain').value = currentConfig.must_contain || '';
+                document.getElementById('cfgInterval').value = currentConfig.interval || 20;
+                document.getElementById('cfgSelenium').checked = currentConfig.use_selenium || false;
+            } catch (e) { console.error(e); }
+        }
+
+        async function saveConfig() {
+            try {
+                currentConfig.keywords = document.getElementById('cfgKeywords').value;
+                currentConfig.exclude = document.getElementById('cfgExclude').value;
+                currentConfig.must_contain = document.getElementById('cfgMustContain').value;
+                currentConfig.interval = parseInt(document.getElementById('cfgInterval').value);
+                currentConfig.use_selenium = document.getElementById('cfgSelenium').checked;
+                await fetch(API + '/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(currentConfig) });
+                alert('配置已保存！');
+            } catch (e) { alert('保存失败: ' + e.message); }
+        }
+
+        async function loadSites() {
+            try {
+                const res = await fetch(API + '/api/sites');
+                currentSites = await res.json();
+                renderSites();
+                loadCustomSites();
+            } catch (e) {
+                console.error(e);
+                document.getElementById('sitesList').innerHTML = '<div class="empty-state">加载失败</div>';
+            }
+        }
+
+        function renderSites() {
+            const c = document.getElementById('sitesList');
+            if (currentSites.length > 0) {
+                c.innerHTML = currentSites.map((s, i) => `<div class="checkbox-item"><input type="checkbox" id="site_${i}" ${s.enabled ? 'checked' : ''} onchange="currentSites[${i}].enabled=this.checked"><label for="site_${i}">${escapeHtml(s.name)}</label></div>`).join('');
+            } else {
+                c.innerHTML = '<div class="empty-state">暂无网站配置</div>';
+            }
+        }
+
+        async function loadCustomSites() {
+            try {
+                const res = await fetch(API + '/api/custom-sites');
+                currentCustomSites = await res.json();
+                renderCustomSites();
+            } catch (e) {
+                console.error(e);
+                currentCustomSites = [];
+                renderCustomSites();
+            }
+        }
+
+        function renderCustomSites() {
+            const c = document.getElementById('customSitesList');
+            if (currentCustomSites.length > 0) {
+                c.innerHTML = currentCustomSites.map((s, i) => `<div class="list-item"><div class="list-item-content"><div class="list-item-title">${escapeHtml(s.name)}</div><div class="list-item-subtitle">${escapeHtml(s.url)}</div></div><div class="list-item-actions"><button class="btn btn-sm btn-danger" onclick="deleteCustomSite(${i})">删除</button></div></div>`).join('');
+            } else {
+                c.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-state-icon">🔗</div><div>暂无自定义网站</div></div>';
+            }
+        }
+
+        function showAddCustomSite() {
+            document.getElementById('customSiteName').value = '';
+            document.getElementById('customSiteUrl').value = '';
+            document.getElementById('customSiteModal').classList.add('active');
+        }
+
+        async function saveCustomSite() {
+            const name = document.getElementById('customSiteName').value.trim();
+            const url = document.getElementById('customSiteUrl').value.trim();
+            if (!name || !url) { alert('请填写网站名称和URL'); return; }
+            currentCustomSites.push({ name, url });
+            try {
+                await fetch(API + '/api/custom-sites', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(currentCustomSites) });
+                closeModal('customSiteModal');
+                renderCustomSites();
+            } catch (e) { alert('保存失败: ' + e.message); }
+        }
+
+        async function deleteCustomSite(i) {
+            if (!confirm('确定删除此自定义网站？')) return;
+            currentCustomSites.splice(i, 1);
+            try {
+                await fetch(API + '/api/custom-sites', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(currentCustomSites) });
+                renderCustomSites();
+            } catch (e) { alert('删除失败: ' + e.message); }
+        }
+
+        function selectAllSites() { currentSites.forEach(s => s.enabled = true); renderSites(); }
+        function deselectAllSites() { currentSites.forEach(s => s.enabled = false); renderSites(); }
+
+        async function saveSites() {
+            try {
+                const enabledSites = currentSites.filter(s => s.enabled).map(s => s.key);
+                await fetch(API + '/api/sites', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(enabledSites) });
+                alert('网站配置已保存！');
+            } catch (e) { alert('保存失败: ' + e.message); }
+        }
+
+        async function loadContacts() {
+            try {
+                const res = await fetch(API + '/api/contacts');
+                currentContacts = await res.json();
+                renderContacts();
+            } catch (e) {
+                console.error(e);
+                document.getElementById('contactsList').innerHTML = '<div class="empty-state">加载失败</div>';
+            }
+        }
+
+        function renderContacts() {
+            const c = document.getElementById('contactsList');
+            if (currentContacts.length > 0) {
+                c.innerHTML = currentContacts.map((x, i) => `<div class="list-item"><div class="list-item-content"><div class="list-item-title">${escapeHtml(x.name)} ${x.enabled ? '✅' : '❌'}</div><div class="list-item-subtitle">${x.phone || ''} ${x.email || ''}</div></div><div class="list-item-actions"><button class="btn btn-sm btn-outline" onclick="editContact(${i})">编辑</button><button class="btn btn-sm btn-danger" onclick="deleteContact(${i})">删除</button></div></div>`).join('');
+            } else {
+                c.innerHTML = '<div class="empty-state"><div class="empty-state-icon">👥</div><div>暂无联系人</div></div>';
+            }
+        }
+
+        function showAddContact() {
+            editingContactIndex = -1;
+            document.getElementById('contactModalTitle').textContent = '添加联系人';
+            document.getElementById('contactName').value = '';
+            document.getElementById('contactPhone').value = '';
+            document.getElementById('contactEmail').value = '';
+            document.getElementById('contactEmailType').value = 'QQ邮箱';
+            document.getElementById('contactEmailPassword').value = '';
+            document.getElementById('contactWechatToken').value = '';
+            document.getElementById('contactEnabled').checked = true;
+            document.getElementById('contactModal').classList.add('active');
+        }
+
+        function editContact(i) {
+            editingContactIndex = i;
+            const c = currentContacts[i];
+            document.getElementById('contactModalTitle').textContent = '编辑联系人';
+            document.getElementById('contactName').value = c.name || '';
+            document.getElementById('contactPhone').value = c.phone || '';
+            document.getElementById('contactEmail').value = c.email || '';
+            document.getElementById('contactEmailType').value = c.email_type || 'QQ邮箱';
+            document.getElementById('contactEmailPassword').value = c.email_password || '';
+            document.getElementById('contactWechatToken').value = c.wechat_token || '';
+            document.getElementById('contactEnabled').checked = c.enabled !== false;
+            document.getElementById('contactModal').classList.add('active');
+        }
+
+        function closeContactModal() { document.getElementById('contactModal').classList.remove('active'); }
+
+        async function saveContact() {
+            const contact = {
+                name: document.getElementById('contactName').value,
+                phone: document.getElementById('contactPhone').value,
+                email: document.getElementById('contactEmail').value,
+                email_type: document.getElementById('contactEmailType').value,
+                email_password: document.getElementById('contactEmailPassword').value,
+                wechat_token: document.getElementById('contactWechatToken').value,
+                enabled: document.getElementById('contactEnabled').checked
+            };
+            if (!contact.name) { alert('请输入姓名'); return; }
+            if (editingContactIndex >= 0) {
+                if (!contact.email_password) contact.email_password = currentContacts[editingContactIndex].email_password;
+                currentContacts[editingContactIndex] = contact;
+            } else {
+                currentContacts.push(contact);
+            }
+            try {
+                await fetch(API + '/api/contacts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(currentContacts) });
+                closeContactModal();
+                renderContacts();
+            } catch (e) { alert('保存失败: ' + e.message); }
+        }
+
+        async function deleteContact(i) {
+            if (!confirm('确定删除此联系人？')) return;
+            currentContacts.splice(i, 1);
+            try {
+                await fetch(API + '/api/contacts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(currentContacts) });
+                renderContacts();
+            } catch (e) { alert('删除失败: ' + e.message); }
+        }
+
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        function showSmsConfig() {
+            document.getElementById('smsEnabled').checked = currentConfig.sms_enabled || false;
+            const sc = currentConfig.sms_config || {};
+            document.getElementById('smsAkid').value = sc.access_key_id || '';
+            document.getElementById('smsAksecret').value = sc.access_key_secret || '';
+            document.getElementById('smsSign').value = sc.sign_name || '';
+            document.getElementById('smsTemplate').value = sc.template_code || '';
+            document.getElementById('smsTestPhone').value = '';
+            document.getElementById('smsModal').classList.add('active');
+        }
+
+        async function saveSmsConfig() {
+            currentConfig.sms_enabled = document.getElementById('smsEnabled').checked;
+            const newSecret = document.getElementById('smsAksecret').value;
+            currentConfig.sms_config = {
+                provider: 'aliyun',
+                access_key_id: document.getElementById('smsAkid').value,
+                access_key_secret: newSecret || (currentConfig.sms_config ? currentConfig.sms_config.access_key_secret : ''),
+                sign_name: document.getElementById('smsSign').value,
+                template_code: document.getElementById('smsTemplate').value
+            };
+            await saveFullConfig();
+            closeModal('smsModal');
+        }
+
+        async function testSms() {
+            const phone = document.getElementById('smsTestPhone').value;
+            if (!phone) { alert('请输入测试手机号'); return; }
+            await saveSmsConfig();
+            try {
+                const res = await fetch(API + '/api/test/sms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }) });
+                const data = await res.json();
+                alert(data.message);
+            } catch (e) { alert('测试失败: ' + e.message); }
+        }
+
+        function showVoiceConfig() {
+            document.getElementById('voiceEnabled').checked = currentConfig.voice_enabled || false;
+            const vc = currentConfig.voice_config || {};
+            document.getElementById('voiceAkid').value = vc.access_key_id || '';
+            document.getElementById('voiceAksecret').value = vc.access_key_secret || '';
+            document.getElementById('voiceTtsCode').value = vc.tts_code || '';
+            document.getElementById('voiceShowNumber').value = vc.called_show_number || '';
+            document.getElementById('voiceTestPhone').value = '';
+            document.getElementById('voiceModal').classList.add('active');
+        }
+
+        async function saveVoiceConfig() {
+            currentConfig.voice_enabled = document.getElementById('voiceEnabled').checked;
+            const newSecret = document.getElementById('voiceAksecret').value;
+            currentConfig.voice_config = {
+                provider: 'aliyun',
+                access_key_id: document.getElementById('voiceAkid').value,
+                access_key_secret: newSecret || (currentConfig.voice_config ? currentConfig.voice_config.access_key_secret : ''),
+                tts_code: document.getElementById('voiceTtsCode').value,
+                called_show_number: document.getElementById('voiceShowNumber').value
+            };
+            await saveFullConfig();
+            closeModal('voiceModal');
+        }
+
+        async function testVoice() {
+            const phone = document.getElementById('voiceTestPhone').value;
+            if (!phone) { alert('请输入测试手机号'); return; }
+            await saveVoiceConfig();
+            try {
+                const res = await fetch(API + '/api/test/voice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }) });
+                const data = await res.json();
+                alert(data.message);
+            } catch (e) { alert('测试失败: ' + e.message); }
+        }
+
+        function showAiConfig() {
+            document.getElementById('aiEnabled').checked = currentConfig.ai_enabled || false;
+            const ac = currentConfig.ai_config || {};
+            document.getElementById('aiUrl').value = ac.base_url || ac.url || 'https://api.deepseek.com/chat/completions';
+            document.getElementById('aiKey').value = ac.api_key || '';
+            document.getElementById('aiModel').value = ac.model || 'deepseek-chat';
+            document.getElementById('aiModal').classList.add('active');
+        }
+
+        async function saveAiConfig() {
+            currentConfig.ai_enabled = document.getElementById('aiEnabled').checked;
+            const newKey = document.getElementById('aiKey').value;
+            currentConfig.ai_config = {
+                enable: document.getElementById('aiEnabled').checked,
+                base_url: document.getElementById('aiUrl').value,
+                api_key: newKey || (currentConfig.ai_config ? currentConfig.ai_config.api_key : ''),
+                model: document.getElementById('aiModel').value
+            };
+            await saveFullConfig();
+            closeModal('aiModal');
+        }
+
+        async function testAi() {
+            await saveAiConfig();
+            try {
+                const res = await fetch(API + '/api/test/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+                const data = await res.json();
+                alert(data.message);
+            } catch (e) { alert('测试失败: ' + e.message); }
+        }
+
+        async function saveFullConfig() {
+            try {
+                await fetch(API + '/api/config/full', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(currentConfig) });
+                alert('配置已保存！');
+            } catch (e) { alert('保存失败: ' + e.message); }
+        }
+
+        async function testContactNotify() {
+            const phone = document.getElementById('contactPhone').value;
+            const email = document.getElementById('contactEmail').value;
+            const token = document.getElementById('contactWechatToken').value;
+            if (!phone && !email && !token) { alert('请先输入手机号、邮箱或微信Token'); return; }
+            let results = [];
+            if (phone) {
+                try {
+                    let res = await fetch(API + '/api/test/sms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }) });
+                    let data = await res.json();
+                    results.push('短信: ' + data.message);
+                } catch (e) { results.push('短信测试失败'); }
+                try {
+                    let res = await fetch(API + '/api/test/voice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }) });
+                    let data = await res.json();
+                    results.push('语音: ' + data.message);
+                } catch (e) { results.push('语音测试失败'); }
+            }
+            if (email) {
+                try {
+                    let res = await fetch(API + '/api/test/email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+                    let data = await res.json();
+                    results.push('邮件: ' + data.message);
+                } catch (e) { results.push('邮件测试失败'); }
+            }
+            if (token) {
+                try {
+                    let res = await fetch(API + '/api/test/wechat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
+                    let data = await res.json();
+                    results.push('微信: ' + data.message);
+                } catch (e) { results.push('微信测试失败'); }
+            }
+            alert(results.join('\n'));
+        }
+
+        async function startMonitor() {
+            try {
+                const res = await fetch(API + '/api/start', { method: 'POST' });
+                const data = await res.json();
+                alert(data.message);
+                refreshStatus();
+                loadLogs();
+            } catch (e) { alert('操作失败: ' + e.message); }
+        }
+
+        async function stopMonitor() {
+            try {
+                const res = await fetch(API + '/api/stop', { method: 'POST' });
+                const data = await res.json();
+                alert(data.message);
+                refreshStatus();
+            } catch (e) { alert('操作失败: ' + e.message); }
+        }
+
+        async function runOnce() {
+            try {
+                const res = await fetch(API + '/api/run-once', { method: 'POST' });
+                const data = await res.json();
+                alert(data.message);
+                refreshStatus();  // 立即刷新状态
+                setTimeout(loadLogs, 1000);
+            } catch (e) { alert('操作失败: ' + e.message); }
+        }
+
+        async function clearLogs() {
+            if (!confirm('确定要清除所有日志吗？')) return;
+            try {
+                await fetch(API + '/api/logs', { method: 'DELETE' });
+                document.getElementById('logsContainer').innerHTML = '<div class="log-line">日志已清除</div>';
+            } catch (e) { alert('清除失败: ' + e.message); }
+        }
+
+        async function clearHistory() {
+            if (!confirm('确定要清空所有历史数据吗？')) return;
+            try {
+                const res = await fetch(API + '/api/history', { method: 'DELETE' });
+                const data = await res.json();
+                alert(data.message);
+                refreshStatus();
+            } catch (e) { alert('操作失败: ' + e.message); }
+        }
+
+        function escapeHtml(t) {
+            if (!t) return '';
+            const d = document.createElement('div');
+            d.textContent = t;
+            return d.innerHTML;
+        }
+
+        // 初始化
+        refreshStatus();
+        loadLogs();
+        setInterval(refreshStatus, 5000);
+        setInterval(loadLogs, 5000);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,43 @@
+{
+  "keywords": "管式膜,智慧水务,膜生物反应器,污水处理,膜法水处理,water treatment,wastewater,membrane bioreactor,membrane filtration,water supply,desalination,sewage treatment",
+  "exclude": "",
+  "must_contain": "",
+  "interval": 360,
+  "enabled_sites": [
+    "ggzy",
+    "ted",
+    "ungm"
+  ],
+  "email_enabled": true,
+  "sms_enabled": true,
+  "voice_enabled": false,
+  "wechat_enabled": false,
+  "ai_enabled": false,
+  "email_configs": [],
+  "sms_config": {
+    "provider": "aliyun",
+    "sign_name": "",
+    "template_code": "",
+    "access_key_id": "",
+    "access_key_secret": ""
+  },
+  "voice_config": {
+    "provider": "aliyun",
+    "access_key_id": "",
+    "access_key_secret": "",
+    "called_show_number": "",
+    "tts_code": ""
+  },
+  "wechat_config": {
+    "provider": "pushplus",
+    "token": ""
+  },
+  "ai_config": {
+    "enable": false,
+    "base_url": "https://api.deepseek.com/chat/completions",
+    "api_key": "",
+    "model": "deepseek-chat"
+  },
+  "contacts": [],
+  "use_selenium": true
+}

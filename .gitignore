@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 敏感配置文件（包含密码和API密钥）
+user_config.json
+server/server_config.json
+
+# 数据文件
+data/
+*.db
+
+# 日志文件
+*.log
+output_log.txt
+
+# Selenium / ChromeDriver
+chromedriver.exe
+chromedriver
+geckodriver.exe
+chromedriver*.zip
+.selenium-cache/
+
+# 运行期数据（数据库/日志/本地配置）
+server/data/
+server/logs/
+
+# 打包文件和发布包
+build_temp/
+build/
+dist/
+*.spec
+_internal/
+
+# 临时脚本和文件
+*.tmp
+*.bak
+add_progress*.py
+fix_*.py
+verify_*.py
+
+# Excel等资料文件
+*.xlsx
+*.xls

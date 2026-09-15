@@ -1,0 +1,21 @@
+[Unit]
+Description=BidMonitor 招标监控服务
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/bidmonitor/server
+# 使用venv虚拟环境中的Python和uvicorn
+Environment="PATH=/opt/bidmonitor/venv/bin:/usr/local/bin:/usr/bin"
+Environment="VIRTUAL_ENV=/opt/bidmonitor/venv"
+ExecStart=/opt/bidmonitor/venv/bin/python -m uvicorn app:app --host 0.0.0.0 --port 8080
+# 自动重启配置
+Restart=always
+RestartSec=10
+# 日志输出
+StandardOutput=append:/opt/bidmonitor/server/logs/server.log
+StandardError=append:/opt/bidmonitor/server/logs/server.log
+
+[Install]
+WantedBy=multi-user.target
