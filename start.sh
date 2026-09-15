@@ -25,10 +25,16 @@ fi
 HOST="${BIDMONITOR_HOST:-127.0.0.1}"
 PORT="${BIDMONITOR_PORT:-8080}"
 
-# 停掉旧进程（无 pkill 的环境忽略）
-if command -v pkill >/dev/null 2>&1; then
-  pkill -f "uvicorn app:app" 2>/dev/null || true
-  sleep 2
+# 只停掉「占用本端口」的旧实例。
+# 注意：不能用 pkill -f "uvicorn app:app" —— 那会误杀跑在其它端口上的实例
+# （多环境/多端口并存时特别危险）。
+if command -v lsof >/dev/null 2>&1; then
+  OLD_PIDS=$(lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t 2>/dev/null || true)
+  if [ -n "$OLD_PIDS" ]; then
+    echo "ℹ️  端口 $PORT 已被占用，先停止旧实例: $OLD_PIDS"
+    kill $OLD_PIDS 2>/dev/null || true
+    sleep 2
+  fi
 fi
 
 mkdir -p server/logs server/data
@@ -38,22 +44,29 @@ echo "正在启动 BidMonitor..."
 nohup "../$VENV_PY" -m uvicorn app:app --host "$HOST" --port "$PORT" \
   > logs/server.log 2>&1 &
 NEWPID=$!
-sleep 5
 
-# 健康检查（比 pgrep 更可靠，跨平台一致）
-if command -v curl >/dev/null 2>&1; then
-  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 "http://127.0.0.1:$PORT/" || true)
-  if [ "$code" = "401" ] || [ "$code" = "200" ]; then
-    echo "✅ 已启动 (pid=$NEWPID)"
-    echo "🌐 访问地址: http://127.0.0.1:$PORT"
-    echo "👤 账号密码: ${BIDMONITOR_USER:-CDKJ} / ${BIDMONITOR_PASSWORD:-cdkj}"
-    echo "📋 日志: tail -f server/logs/server.log"
-    exit 0
+# 轮询健康检查：解析成百毫秒级，固定 sleep 容易误判失败
+ok=""
+for _ in $(seq 1 20); do
+  sleep 1
+  if command -v curl >/dev/null 2>&1; then
+    code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "http://127.0.0.1:$PORT/" || true)
+    case "$code" in 200|401) ok="yes"; break;; esac
+  else
+    # 没有 curl 时退化为检查进程是否还在
+    if kill -0 "$NEWPID" 2>/dev/null; then ok="yes"; break; fi
   fi
-  echo "⚠️  健康检查未通过 (HTTP $code)，日志尾部："
-else
-  echo "ℹ️  未安装 curl，跳过健康检查。日志尾部："
+  kill -0 "$NEWPID" 2>/dev/null || break   # 进程已退出，不必再等
+done
+
+if [ -n "$ok" ]; then
+  echo "✅ 已启动 (pid=$NEWPID)"
+  echo "🌐 访问地址: http://127.0.0.1:$PORT"
+  echo "👤 账号密码: ${BIDMONITOR_USER:-CDKJ} / ${BIDMONITOR_PASSWORD:-cdkj}"
+  echo "📋 日志: tail -f server/logs/server.log"
+  exit 0
 fi
 
+echo "❌ 启动失败，日志尾部："
 tail -20 logs/server.log
 exit 1
